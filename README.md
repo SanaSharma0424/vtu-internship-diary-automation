@@ -147,6 +147,36 @@ This project solves that problem by building a fully automated diary generation 
 * Admin approval status monitoring
 
 ---
+## Project Screenshots
+
+### Complete n8n Workflow
+
+![Complete Workflow](workflow.png)
+
+---
+
+### Chat-Based Input System
+
+![Chat Input System](chat-trigger.png)
+
+---
+
+### AI Generated Internship Summary
+
+![AI Summary Output](ai-summary.png)
+
+---
+
+### Successful VTU Diary Submission
+
+![VTU Submission Success](vtu-submit.png)
+
+---
+
+### VTU Portal Entry Verification
+
+![VTU Portal Entry](portal-entry.png)
+---
 
 ## Author
 
