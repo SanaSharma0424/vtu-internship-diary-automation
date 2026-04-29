@@ -1,0 +1,364 @@
+{
+  "name": "Day Mapper",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4bb80006-3bc5-4625-b381-5a57e7ec89e8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "responseNodes"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3ef58c66-3a9d-4793-b9c3-05b892d0d54e",
+      "name": "When chat message received",
+      "webhookId": "f3db12e5-2e5e-45ad-8b73-7ed12a5008db"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are generating VTU internship diary content for engineering internship submission.\n\nFrom the lesson content provided, generate the output in a clean professional format.\n\nRules:\n\n1. Work Summary:\n- Write only 2 to 3 concise professional sentences\n- Keep it realistic and formal\n- Do not make it too long\n\n2. Learnings / Outcomes:\n- Write short clear learning outcomes in 2 to 3 lines\n\n3. Blockers / Risks:\n- Write only 1 realistic challenge faced while learning\n- Keep it short and practical\n\n4. Skills Used:\n- Write ONLY skill names separated by commas\n- Example: Docker, n8n, APIs, JavaScript, Problem Solving\n- Do NOT write explanations or sentences here\n\n5. Hours Worked:\n- Always return only: 8\n\nFormatting Rules:\n- Leave one blank line between each field\n- Do NOT use \\\\n\n- Output should look clean and readable\n- Return only the final answer, no extra explanation\n\nRequired Format:\n\nWork Summary:\n...\n\nLearnings / Outcomes:\n...\n\nBlockers / Risks:\n...\n\nSkills Used:\nDocker, APIs, JavaScript, Communication\n\nHours Worked:\n8\n\nLesson Content:\n{{$json.content}}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "c7facdcb-8272-47d2-9a4b-22b98db4d674",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        192
+      ],
+      "id": "28c62363-f7bc-4782-96d6-8bbbaecb47bd",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "p6wafhBtbEp8Wgoh",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "message": "={{$node[\"AI Agent\"].json.output}}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        1808,
+        16
+      ],
+      "id": "34410ba0-fab1-490c-9692-daf124489fab",
+      "name": "Chat",
+      "webhookId": "c7a21316-982b-48e2-ba1b-861b17dd4206"
+    },
+    {
+      "parameters": {
+        "jsCode": "const userMessage =\n  $json.chatInput ||\n  $json.message ||\n  $json.text ||\n  \"\";\n\n// Internship start date\nconst internshipStartDate = new Date(\"2026-02-02\"); // Day 1\n\nlet dayNumber = null;\n\n/*\nCASE 1 → Input like \"Day 7\"\n*/\nconst explicitDayMatch = userMessage.match(/day\\s*(\\d+)/i);\n\nif (explicitDayMatch) {\n  dayNumber = parseInt(explicitDayMatch[1]);\n}\n\n/*\nCASE 2 → Input like \"10 Feb 2026\"\n*/\nelse {\n  const inputDate = new Date(userMessage);\n\n  if (!isNaN(inputDate)) {\n    let currentDate = new Date(internshipStartDate);\n    let workingDayCount = 1;\n\n    // move forward until dates match\n    while (currentDate.toDateString() !== inputDate.toDateString()) {\n      currentDate.setDate(currentDate.getDate() + 1);\n\n      const dayOfWeek = currentDate.getDay();\n\n      // Skip Saturday (6) + Sunday (0)\n      if (dayOfWeek !== 0 && dayOfWeek !== 6) {\n        workingDayCount++;\n      }\n\n      if (workingDayCount > 200) break;\n    }\n\n    dayNumber = workingDayCount;\n  }\n}\n\n/*\nValidation\n*/\nif (!dayNumber || dayNumber < 1 || dayNumber > 60) {\n  return [\n    {\n      json: {\n        error: \"Please enter like: Day 7 or 10 Feb 2026\"\n      }\n    }\n  ];\n}\n\n/*\nGenerate exact VTU date from dayNumber\n*/\nlet targetDate = new Date(internshipStartDate);\nlet counter = 1;\n\nwhile (counter < dayNumber) {\n  targetDate.setDate(targetDate.getDate() + 1);\n\n  const dayOfWeek = targetDate.getDay();\n\n  if (dayOfWeek !== 0 && dayOfWeek !== 6) {\n    counter++;\n  }\n}\n\nconst vtuDate = targetDate.toISOString().split(\"T\")[0];\n\n/*\nPhase → Week → Day mapping\n*/\nconst phase = Math.ceil(dayNumber / 20);\n\nconst dayInsidePhase = ((dayNumber - 1) % 20) + 1;\n\nconst week = Math.ceil(dayInsidePhase / 5);\n\nconst day = ((dayInsidePhase - 1) % 5) + 1;\n\nreturn [\n  {\n    json: {\n      originalMessage: userMessage,\n      dayNumber,\n      vtuDate,\n      phase,\n      week,\n      day\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d990381e-bade-4f4a-b810-6d0bf338b6de",
+      "name": "Day Mapping"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dayNumber = $json.dayNumber;\n\n// Internship start date = Day 1\nconst internshipStartDate = new Date(\"2026-02-02\");\n\n// Create working-day based VTU date\nlet workingDayCount = 1;\nlet targetDate = new Date(internshipStartDate);\n\nwhile (workingDayCount < dayNumber) {\n  targetDate.setDate(targetDate.getDate() + 1);\n\n  const dayOfWeek = targetDate.getDay();\n\n  // Skip Saturday (6) and Sunday (0)\n  if (dayOfWeek !== 0 && dayOfWeek !== 6) {\n    workingDayCount++;\n  }\n}\n\n// Format YYYY-MM-DD\nconst formattedDate = targetDate.toISOString().split(\"T\")[0];\n\n// Phase calculation\nconst phase = Math.ceil(dayNumber / 20);\n\n// Day inside phase (1–20)\nconst dayInsidePhase = ((dayNumber - 1) % 20) + 1;\n\n// Week calculation\nconst week = Math.ceil(dayInsidePhase / 5);\n\n// Day inside week (1–5)\nconst weekDay = ((dayInsidePhase - 1) % 5) + 1;\n\nreturn [\n  {\n    json: {\n      dayNumber,\n      vtuDate: formattedDate,\n      phase,\n      week,\n      day: weekDay\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "8606b291-8943-466e-a82a-f883c19de86b",
+      "name": "Curriculum API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const targetPhase = $node[\"Curriculum API\"].json.phase;\nconst targetWeek = $node[\"Curriculum API\"].json.week;\nconst targetDay = $node[\"Curriculum API\"].json.day;\n\n/*\nGet actual HTTP response from previous Curriculum API node\nSometimes n8n gives object directly,\nsometimes inside array/object wrappers\n*/\nlet curriculum = $input.first().json;\n\n// If wrapped inside \"data\"\nif (curriculum.data) {\n  curriculum = curriculum.data;\n}\n\n// If wrapped inside \"curriculum\"\nif (curriculum.curriculum) {\n  curriculum = curriculum.curriculum;\n}\n\n// Force into array if single object\nif (!Array.isArray(curriculum)) {\n  curriculum = [curriculum];\n}\n\n/*\nFind correct phase\n*/\nconst selectedPhase = curriculum.find(\n  item => Number(item.order) === Number(targetPhase)\n);\n\nif (!selectedPhase) {\n  throw new Error(\"Phase not found\");\n}\n\n/*\nFind correct week\n*/\nif (!selectedPhase.weeks || !Array.isArray(selectedPhase.weeks)) {\n  throw new Error(\"Weeks not found inside selected phase\");\n}\n\nconst selectedWeek = selectedPhase.weeks.find(\n  item => Number(item.order) === Number(targetWeek)\n);\n\nif (!selectedWeek) {\n  throw new Error(\"Week not found\");\n}\n\n/*\nFind correct day\n*/\nif (!selectedWeek.days || !Array.isArray(selectedWeek.days)) {\n  throw new Error(\"Days not found inside selected week\");\n}\n\nconst selectedDay = selectedWeek.days.find(\n  item => Number(item.order) === Number(targetDay)\n);\n\nif (!selectedDay) {\n  throw new Error(\"Day not found\");\n}\n\n/*\nGet first lesson\n*/\nif (!selectedDay.lessons || !Array.isArray(selectedDay.lessons) || selectedDay.lessons.length === 0) {\n  throw new Error(\"Lesson not found\");\n}\n\nconst lesson = selectedDay.lessons[0];\n\nreturn [\n  {\n    json: {\n      phase: targetPhase,\n      week: targetWeek,\n      day: targetDay,\n      lessonId: lesson.lessonId,\n      lessonTitle: lesson.title\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "545aed93-0cb3-42b1-be9f-b3609c977598",
+      "name": "Lesson API"
+    },
+    {
+      "parameters": {
+        "url": "=https://isparkskills.ai/api/lessons/{{$json.lessonId}}?internshipId=1769665568462",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "CognitoIdToken=eyJraWQiOiJ6UVhFV2hHQ2JsRkFpNGZsQkpmUnk5a243dDRTYW9JYVpWOXBZbklQTkVBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkiLCJjb2duaXRvOmdyb3VwcyI6WyJzdHVkZW50Il0sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuYXAtc291dGgtMS5hbWF6b25hd3MuY29tXC9hcC1zb3V0aC0xX3F5RFZCMEJKUCIsInBob25lX251bWJlcl92ZXJpZmllZCI6dHJ1ZSwiY29nbml0bzp1c2VybmFtZSI6IjgxZjNkZGZhLTEwNjEtNzA3Zi1mOWY3LTNiNWQyNjA0MGEzOSIsIm9yaWdpbl9qdGkiOiJjOTg1ZjMzMC03YzBmLTQxYjEtOTAwYy1iNmY4NTMwZmJlNTMiLCJhdWQiOiIyaGw2MGxqbmE2NDJqNGVwamFtMm8zaTFycSIsImV2ZW50X2lkIjoiYTY1YjdjNjgtNGY4Yy00ZjQxLTk4ODktODhmMWVjZTk5NjU2IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NzczNzEzMTIsIm5hbWUiOiJTYW5hIFNoYXJtYSIsInBob25lX251bWJlciI6Iis5MTk2MDYwMzQ1NTciLCJleHAiOjE3NzczNzQ5MTIsImlhdCI6MTc3NzM3MTMxMiwianRpIjoiNWRjNzMwOWQtODM4ZC00OWFmLTk3MGMtZTk3N2JiZTk3YzgxIiwiZW1haWwiOiJoNDg4NTIwMzRAZ21haWwuY29tIn0.ArbDpMSfr-2JBgXSVBrJCH6eNDr9NJMS2PZp-WaVEfPJcVvvnbfCY4ls9szYpre6RDwZFKNdfWyAc6chiPufq98dJixHxaI3FxdjNArbrLL-YnbNld4H76vnrc-kVtbnlbi1pC8NLjdrsmyeWEraOjjjG7sCfzi9Ughe_fR1Fey-5nJSTmPc1HI4_Gtk24bGktypyDUfx1QmmIDTXZsyeLY0bSzh40n1_NXng9Z9u5hCGnSP6e6CxU0ad8Gv6ln-U1giM0DICnBjMrEJo1OkHBTsVrN8typ80q0TcRN-5i_uvj6WqBOiR29BA2QQURShDd4R2WjU0aX0IepsV3eTLg; CognitoAccessToken=eyJraWQiOiJROG85cTZUU0F3VStqRXNLQjFtWThodVVadXEzT1hFYTVSaGVcLzQ3dzJiaz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkiLCJjb2duaXRvOmdyb3VwcyI6WyJzdHVkZW50Il0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5hcC1zb3V0aC0xLmFtYXpvbmF3cy5jb21cL2FwLXNvdXRoLTFfcXlEVkIwQkpQIiwiY2xpZW50X2lkIjoiMmhsNjBsam5hNjQyajRlcGphbTJvM2kxcnEiLCJvcmlnaW5fanRpIjoiYzk4NWYzMzAtN2MwZi00MWIxLTkwMGMtYjZmODUzMGZiZTUzIiwiZXZlbnRfaWQiOiJhNjViN2M2OC00ZjhjLTRmNDEtOTg4OS04OGYxZWNlOTk2NTYiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6ImF3cy5jb2duaXRvLnNpZ25pbi51c2VyLmFkbWluIiwiYXV0aF90aW1lIjoxNzc3MzcxMzEyLCJleHAiOjE3NzczNzQ5MTIsImlhdCI6MTc3NzM3MTMxMiwianRpIjoiZDgyZDc0NWMtMjBjOC00MThlLTlmZTEtNTMyYmQxMDk3OTVkIiwidXNlcm5hbWUiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkifQ.cLH_EJwvwe6fvv-z0UvM8AyVLsz4av2oxjIfN3yVIxT8WAnmoKrMYup2Nj1Ap4m7fLS8QTTUNi5cbukdHw2b1EpsbbkqpNWG3O2I7vY6c5wH2tW4tPmk7jaGJEN2zz5lsrpFiuYW8i4t6svLkUc42gou9ij3MUXwH5JUfR1Z2PilGZJ9Hd6a0TZjcaxOVV4q93q-R6W7oW6bh1cE-1X1Iqhp1MiUQvoj1Z-ma6tKjo9nAcjaDIa3R1pwuuzgnU3AbniiVJPsZZzKCKmii6xJTElNPQdcNzY0mpiSm3fr0QFEsmF35rryzMyIxKLvq6SMsnetafUpvwcZPb2T5aGSFQ"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "0c2c06c2-aaa7-4a06-b63c-b9092ca29f03",
+      "name": "AI Agent Summary"
+    },
+    {
+      "parameters": {
+        "url": "https://isparkskills.ai/api/curriculum/1769665568462",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "CognitoIdToken=eyJraWQiOiJ6UVhFV2hHQ2JsRkFpNGZsQkpmUnk5a243dDRTYW9JYVpWOXBZbklQTkVBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkiLCJjb2duaXRvOmdyb3VwcyI6WyJzdHVkZW50Il0sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuYXAtc291dGgtMS5hbWF6b25hd3MuY29tXC9hcC1zb3V0aC0xX3F5RFZCMEJKUCIsInBob25lX251bWJlcl92ZXJpZmllZCI6dHJ1ZSwiY29nbml0bzp1c2VybmFtZSI6IjgxZjNkZGZhLTEwNjEtNzA3Zi1mOWY3LTNiNWQyNjA0MGEzOSIsIm9yaWdpbl9qdGkiOiJjOTg1ZjMzMC03YzBmLTQxYjEtOTAwYy1iNmY4NTMwZmJlNTMiLCJhdWQiOiIyaGw2MGxqbmE2NDJqNGVwamFtMm8zaTFycSIsImV2ZW50X2lkIjoiYTY1YjdjNjgtNGY4Yy00ZjQxLTk4ODktODhmMWVjZTk5NjU2IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NzczNzEzMTIsIm5hbWUiOiJTYW5hIFNoYXJtYSIsInBob25lX251bWJlciI6Iis5MTk2MDYwMzQ1NTciLCJleHAiOjE3NzczNzQ5MTIsImlhdCI6MTc3NzM3MTMxMiwianRpIjoiNWRjNzMwOWQtODM4ZC00OWFmLTk3MGMtZTk3N2JiZTk3YzgxIiwiZW1haWwiOiJoNDg4NTIwMzRAZ21haWwuY29tIn0.ArbDpMSfr-2JBgXSVBrJCH6eNDr9NJMS2PZp-WaVEfPJcVvvnbfCY4ls9szYpre6RDwZFKNdfWyAc6chiPufq98dJixHxaI3FxdjNArbrLL-YnbNld4H76vnrc-kVtbnlbi1pC8NLjdrsmyeWEraOjjjG7sCfzi9Ughe_fR1Fey-5nJSTmPc1HI4_Gtk24bGktypyDUfx1QmmIDTXZsyeLY0bSzh40n1_NXng9Z9u5hCGnSP6e6CxU0ad8Gv6ln-U1giM0DICnBjMrEJo1OkHBTsVrN8typ80q0TcRN-5i_uvj6WqBOiR29BA2QQURShDd4R2WjU0aX0IepsV3eTLg; CognitoAccessToken=eyJraWQiOiJROG85cTZUU0F3VStqRXNLQjFtWThodVVadXEzT1hFYTVSaGVcLzQ3dzJiaz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkiLCJjb2duaXRvOmdyb3VwcyI6WyJzdHVkZW50Il0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5hcC1zb3V0aC0xLmFtYXpvbmF3cy5jb21cL2FwLXNvdXRoLTFfcXlEVkIwQkpQIiwiY2xpZW50X2lkIjoiMmhsNjBsam5hNjQyajRlcGphbTJvM2kxcnEiLCJvcmlnaW5fanRpIjoiYzk4NWYzMzAtN2MwZi00MWIxLTkwMGMtYjZmODUzMGZiZTUzIiwiZXZlbnRfaWQiOiJhNjViN2M2OC00ZjhjLTRmNDEtOTg4OS04OGYxZWNlOTk2NTYiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6ImF3cy5jb2duaXRvLnNpZ25pbi51c2VyLmFkbWluIiwiYXV0aF90aW1lIjoxNzc3MzcxMzEyLCJleHAiOjE3NzczNzQ5MTIsImlhdCI6MTc3NzM3MTMxMiwianRpIjoiZDgyZDc0NWMtMjBjOC00MThlLTlmZTEtNTMyYmQxMDk3OTVkIiwidXNlcm5hbWUiOiI4MWYzZGRmYS0xMDYxLTcwN2YtZjlmNy0zYjVkMjYwNDBhMzkifQ.cLH_EJwvwe6fvv-z0UvM8AyVLsz4av2oxjIfN3yVIxT8WAnmoKrMYup2Nj1Ap4m7fLS8QTTUNi5cbukdHw2b1EpsbbkqpNWG3O2I7vY6c5wH2tW4tPmk7jaGJEN2zz5lsrpFiuYW8i4t6svLkUc42gou9ij3MUXwH5JUfR1Z2PilGZJ9Hd6a0TZjcaxOVV4q93q-R6W7oW6bh1cE-1X1Iqhp1MiUQvoj1Z-ma6tKjo9nAcjaDIa3R1pwuuzgnU3AbniiVJPsZZzKCKmii6xJTElNPQdcNzY0mpiSm3fr0QFEsmF35rryzMyIxKLvq6SMsnetafUpvwcZPb2T5aGSFQ"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "f9d3937f-ebd7-4344-933b-1f6bf1e14b24",
+      "name": "lessonId Fetch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vtuapi.internyet.in/api/v1/auth/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "User-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"email\": \"h48852034@gmail.com\",\n  \"password\": \"Chik11y$01\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1952,
+        144
+      ],
+      "id": "0422ecf6-38a4-4302-9982-ca29671332df",
+      "name": "VTU Login"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vtuapi.internyet.in/api/v1/student/internship-diaries/store",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{$node[\"VTU Login\"].json.headers[\"set-cookie\"]}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"internship_id\": 5541,\n  \"date\": \"{{ $node['Day Mapping'].json.vtuDate }}\",\n  \"description\": \"{{ $node['AI Agent'].json.output.replace(/\\n/g, ' ') }}\",\n  \"hours\": 8,\n  \"links\": \"\",\n  \"blockers\": \"Minor challenges while understanding lesson concepts\",\n  \"learnings\": \"Learned workflow automation and internship concepts\",\n  \"mood_slider\": 5,\n  \"skill_ids\": [\"65\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2176,
+        144
+      ],
+      "id": "c103d7d1-0cc3-45f2-a4e7-d25e1c9c1adc",
+      "name": "VTU Diary"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        []
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Day Mapping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "VTU Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day Mapping": {
+      "main": [
+        [
+          {
+            "node": "Curriculum API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Curriculum API": {
+      "main": [
+        [
+          {
+            "node": "lessonId Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lesson API": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Summary": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lessonId Fetch": {
+      "main": [
+        [
+          {
+            "node": "Lesson API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VTU Login": {
+      "main": [
+        [
+          {
+            "node": "Chat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "VTU Diary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b5b830af-7246-45af-bc06-4e07d2589799",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8c7deff8bd2d6c18068745faab2163c6e533ba447f720a0f184051c9f29b34d4"
+  },
+  "id": "u5sZBwLK0NOJBMYN",
+  "tags": []
+}
