@@ -6,6 +6,38 @@ This project fetches lesson content from iSpark, generates professional internsh
 
 ---
 
+## Project Screenshots
+
+### Complete n8n Workflow
+
+![Complete Workflow](workflow.png)
+
+---
+
+### Chat-Based Input System
+
+![Chat Input System](chat-trigger.png)
+
+---
+
+### AI Generated Internship Summary
+
+![AI Summary Output](ai-summary.png)
+
+---
+
+### Successful VTU Diary Submission
+
+![VTU Submission Success](vtu-submit.png)
+
+---
+
+### VTU Portal Entry Verification
+
+![VTU Portal Entry](portal-entry.png)
+
+---
+
 ## Project Overview
 
 Maintaining daily internship diary entries manually in the VTU portal is repetitive, time-consuming, and often inconsistent. Since internship learning content already exists inside the iSpark Skills platform, this project automates the entire process by connecting both systems.
@@ -146,36 +178,6 @@ This project solves that problem by building a fully automated diary generation 
 * Email notifications after successful submission
 * Admin approval status monitoring
 
----
-## Project Screenshots
-
-### Complete n8n Workflow
-
-![Complete Workflow](workflow.png)
-
----
-
-### Chat-Based Input System
-
-![Chat Input System](chat-trigger.png)
-
----
-
-### AI Generated Internship Summary
-
-![AI Summary Output](ai-summary.png)
-
----
-
-### Successful VTU Diary Submission
-
-![VTU Submission Success](vtu-submit.png)
-
----
-
-### VTU Portal Entry Verification
-
-![VTU Portal Entry](portal-entry.png)
 ---
 
 ## Author
