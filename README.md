@@ -10,7 +10,7 @@ This project fetches lesson content from iSpark, generates professional internsh
 
 ### Complete n8n Workflow
 
-![Complete Workflow](workflow.png)
+![Complete Workflow](Flow chart.png)
 
 ---
 
